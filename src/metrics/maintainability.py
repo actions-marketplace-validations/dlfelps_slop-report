@@ -87,7 +87,7 @@ def _extract_base(base_ref: str, workspace: str, dest: str) -> tuple[bool, str]:
 
 
 def run_regression(base_ref: str, workspace: str) -> MetricResult:
-    """Worst-case relative change in MI across modified files only."""
+    """Worst-case absolute MI point change across modified files only."""
     modified = get_modified_python_files(base_ref, workspace)
     if not modified:
         return MetricResult(
@@ -97,14 +97,13 @@ def run_regression(base_ref: str, workspace: str) -> MetricResult:
             detail="No modified Python files",
         )
 
-    changes: list[tuple[str, float]] = []  # (filename, pct_change)
+    changes: list[tuple[str, float, float, float]] = []  # (filename, base_mi, head_mi, diff)
     for abs_path in modified:
         head_scores = _radon_scores([abs_path])
         head_mi = next(iter(head_scores.values()), None)
         base = _base_mi(base_ref, workspace, abs_path)
-        if head_mi is not None and base is not None and base > 0:
-            pct = (head_mi - base) / base * 100
-            changes.append((os.path.basename(abs_path), pct))
+        if head_mi is not None and base is not None:
+            changes.append((os.path.basename(abs_path), base, head_mi, head_mi - base))
 
     if not changes:
         return MetricResult(
@@ -114,21 +113,22 @@ def run_regression(base_ref: str, workspace: str) -> MetricResult:
             detail="Could not compute MI for any modified file",
         )
 
-    worst_name, worst_pct = min(changes, key=lambda x: x[1])
+    worst = min(changes, key=lambda x: x[3])
+    worst_name, worst_base, worst_head, worst_diff = worst
 
-    if worst_pct >= 0:
+    if worst_diff >= 0:
         status = "✅"
         detail = f"No regression detected ({len(changes)} file(s) checked)"
-    elif worst_pct >= -10:
+    elif worst_diff >= -10:
         status = "⚠️"
-        detail = f"Worst: {worst_name} ({worst_pct:+.0f}%)"
+        detail = f"Worst: {worst_name} ({worst_base:.0f} → {worst_head:.0f})"
     else:
         status = "🛑"
-        detail = f"Worst: {worst_name} ({worst_pct:+.0f}%)"
+        detail = f"Worst: {worst_name} ({worst_base:.0f} → {worst_head:.0f})"
 
     return MetricResult(
         name="MI Regression",
-        score=f"{worst_pct:+.0f}%",
+        score=f"{worst_diff:+.0f} pts",
         status=status,
         detail=detail,
     )

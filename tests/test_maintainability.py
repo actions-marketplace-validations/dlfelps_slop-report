@@ -17,39 +17,42 @@ def test_regression_no_modified_files():
 
 
 def test_regression_improvement():
-    """File improved 70 → 80 (+14%): no regression, ✅."""
+    """File improved 70 → 80 (+10 pts): no regression, ✅."""
     with patch("src.metrics.maintainability.get_modified_python_files", return_value=["/ws/foo.py"]):
         with patch("src.metrics.maintainability._radon_scores", return_value={"/ws/foo.py": 80.0}):
             with patch("src.metrics.maintainability._base_mi", return_value=70.0):
                 result = run_regression("main", "/ws")
     assert result.status == "✅"
-    assert result.score.startswith("+")
+    assert result.score == "+10 pts"
 
 
 def test_regression_slight():
-    """File regressed 65 → 60 (−7.7%): ⚠️."""
+    """File regressed 65 → 60 (−5 pts): ⚠️."""
     with patch("src.metrics.maintainability.get_modified_python_files", return_value=["/ws/foo.py"]):
         with patch("src.metrics.maintainability._radon_scores", return_value={"/ws/foo.py": 60.0}):
             with patch("src.metrics.maintainability._base_mi", return_value=65.0):
                 result = run_regression("main", "/ws")
     assert result.status == "⚠️"
-    assert result.score.startswith("-")
+    assert result.score == "-5 pts"
+    assert "65" in result.detail and "60" in result.detail
 
 
 def test_regression_severe():
-    """File regressed 65 → 40 (−38%): 🛑."""
+    """File regressed 65 → 40 (−25 pts): 🛑."""
     with patch("src.metrics.maintainability.get_modified_python_files", return_value=["/ws/foo.py"]):
         with patch("src.metrics.maintainability._radon_scores", return_value={"/ws/foo.py": 40.0}):
             with patch("src.metrics.maintainability._base_mi", return_value=65.0):
                 result = run_regression("main", "/ws")
     assert result.status == "🛑"
+    assert result.score == "-25 pts"
+    assert "65" in result.detail and "40" in result.detail
 
 
 def test_regression_picks_worst():
-    """Multiple files: worst case drives the result."""
+    """Multiple files: worst absolute drop drives the result."""
     files = ["/ws/a.py", "/ws/b.py"]
-    # a.py: 80 → 85 (+6%)
-    # b.py: 70 → 55 (−21%)  ← worst
+    # a.py: 80 → 85 (+5 pts)
+    # b.py: 70 → 55 (−15 pts)  ← worst
     call_count = [0]
 
     def mock_radon(file_list):
