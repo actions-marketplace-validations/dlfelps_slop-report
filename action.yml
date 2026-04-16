@@ -1,5 +1,5 @@
-name: 'PR Quality Gate'
-description: 'Posts a code quality report (coverage, blast radius, performance, maintainability) as a PR comment for Python projects.'
+name: 'Slop Report'
+description: 'Automatic PR quality report for Python projects: coverage, blast radius, performance regression, and maintainability — posted as a comment on every PR.'
 author: 'dlfelps'
 branding:
   icon: 'shield'
