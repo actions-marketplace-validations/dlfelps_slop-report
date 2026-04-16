@@ -9,7 +9,7 @@ Slop Report posts a code quality summary as a comment on every pull request — 
 | Change Risk | 72% covered | ⚠️ | 28% of changed lines lack test coverage |
 | Blast Radius | 12 modules | 🛑 | High impact: auth, api, models affected |
 | Performance | No regressions | ✅ | No tests exceeded 20% slowdown threshold |
-| MI Regression | -12% | 🛑 | Worst: auth.py (-12%) |
+| MI Regression | -10 pts | 🛑 | Worst: [auth.py](#diff-…) (80 → 70) |
 | New File Quality | 0.94× | ⚠️ | New files avg MI 68 vs main avg 72 |
 
 Runs alongside your existing CI — it never blocks a merge, just surfaces the signal.
@@ -53,8 +53,8 @@ jobs:
 | **Change Risk** | % of added/modified lines covered by your existing test suite |
 | **Blast Radius** | How many other modules import the files you changed |
 | **Performance** | Per-test timing compared to the base branch — regressions are flagged |
-| **MI Regression** | Worst relative drop in Maintainability Index across modified files |
-| **New File Quality** | Avg MI of added files relative to the base branch average |
+| **MI Regression** | Worst absolute drop in Maintainability Index (pts) across modified files — detail links to the file's diff |
+| **New File Quality** | Avg MI of added files divided by the base branch average — ratio < 1.0 means new code is less maintainable |
 
 ---
 
@@ -107,10 +107,22 @@ Parses every Python file in the repository with Python's `ast` module to build a
 Runs `pytest --durations=0` on both the base branch and the PR branch using `git archive`, then compares per-test timings. Tests that slowed by more than the configured threshold are flagged, with the worst offender highlighted in the report.
 
 ### MI Regression
-Runs `radon mi` on each modified Python file and compares its score against the same file on the base branch via `git show`. Computes the relative change for each file and reports the worst (most negative) value. Only files present in both branches are included; newly added files are excluded.
+Runs `radon mi` on each **modified** Python file and fetches the same file at the base branch via `git show`. Reports the worst absolute point drop across all modified files (e.g. `-10 pts` for a file that went from 80 → 70). The detail line names the worst file and links directly to its diff in the PR. Only files present in both branches are considered; newly added files are handled separately.
+
+| Score | Status |
+|-------|--------|
+| ≥ 0 pts | ✅ No regression |
+| −10 to 0 pts | ⚠️ Slight regression |
+| < −10 pts | 🛑 Significant regression |
 
 ### New File Quality
-Runs `radon mi` on all Python files added in the PR and computes their average Maintainability Index. Extracts the base branch via `git archive` and computes the average MI of all existing Python files. Reports the ratio: new files avg ÷ base avg. A ratio ≥ 1.0 means new code is at least as maintainable as the existing codebase.
+Runs `radon mi` on all Python files **added** in the PR and computes their average MI. Extracts the base branch via `git archive` and computes the average MI of all existing Python files. Reports the ratio: new files avg ÷ base avg.
+
+| Score | Status |
+|-------|--------|
+| ≥ 1.0× | ✅ New code meets or exceeds the existing baseline |
+| 0.9–1.0× | ⚠️ New code is slightly below the baseline |
+| < 0.9× | 🛑 New code is significantly below the baseline |
 
 ---
 
